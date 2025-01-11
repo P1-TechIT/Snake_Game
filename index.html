@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Snake Game</title>
+    <style>
+      body {
+        background-color: black;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        overflow: hidden; /* Prevents scrollbars from appearing */
+        color: white;
+        font-family: Arial, sans-serif;
+      }
+
+      #points {
+        font-size: 24px;
+        margin-bottom: 10px;
+      }
+
+      #boundary {
+        position: relative;
+        width: 80vw;
+        height: 80vh;
+        border: 5px solid white;
+        border-radius: 15px;
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+        overflow: hidden;
+      }
+
+      .snake-part {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background-color: lime;
+        border-radius: 50%;
+      }
+
+      #food {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background-color: red;
+        border-radius: 50%;
+      }
+
+      #pause-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 10px 20px;
+        background-color: white;
+        color: black;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="points">Points: 0</div>
+    <div id="boundary">
+      <div class="snake-part" id="snake"></div>
+      <div id="food"></div>
+      <button id="pause-btn">Pause</button>
+    </div>
+    <script>
+      let snake = [document.querySelector("#snake")];
+      let food = document.querySelector("#food");
+      let boundary = document.querySelector("#boundary");
+      let pointsDisplay = document.querySelector("#points");
+      let pauseBtn = document.querySelector("#pause-btn");
+      let speed = 20;
+      let direction = null;
+      let intervalId;
+      let points = 0;
+      let snakeLength = 1;
+      let isPaused = false;
+
+      function moveFood() {
+        let boundaryRect = boundary.getBoundingClientRect();
+        let foodX = Math.floor(Math.random() * (boundaryRect.width - food.offsetWidth));
+        let foodY = Math.floor(Math.random() * (boundaryRect.height - food.offsetHeight));
+        food.style.left = foodX + "px";
+        food.style.top = foodY + "px";
+      }
+
+      function checkCollision() {
+        let snakeHeadRect = snake[0].getBoundingClientRect();
+        let foodRect = food.getBoundingClientRect();
+
+        if (
+          snakeHeadRect.x < foodRect.x + foodRect.width &&
+          snakeHeadRect.x + snakeHeadRect.width > foodRect.x &&
+          snakeHeadRect.y < foodRect.y + foodRect.height &&
+          snakeHeadRect.y + snakeHeadRect.height > foodRect.y
+        ) {
+          points += 10;
+          pointsDisplay.textContent = "Points: " + points;
+          moveFood();
+          growSnake();
+        }
+      }
+
+      function growSnake() {
+        let newPart = document.createElement("div");
+        newPart.classList.add("snake-part");
+        boundary.appendChild(newPart);
+        snake.push(newPart);
+        snakeLength++;
+      }
+
+      function moveSnake() {
+        if (isPaused) return;
+
+        let boundaryRect = boundary.getBoundingClientRect();
+        let snakeHeadRect = snake[0].getBoundingClientRect();
+        let newX = parseInt(snake[0].style.left) || 0;
+        let newY = parseInt(snake[0].style.top) || 0;
+
+        if (direction === 'left') {
+          if (newX > 0) {
+            newX -= speed;
+          } else {
+            endGame("left");
+            return;
+          }
+        } else if (direction === 'up') {
+          if (newY > 0) {
+            newY -= speed;
+          } else {
+            endGame("top");
+            return;
+          }
+        } else if (direction === 'right') {
+          if (snakeHeadRect.right + speed <= boundaryRect.right) {
+            newX += speed;
+          } else {
+            endGame("right");
+            return;
+          }
+        } else if (direction === 'down') {
+          if (snakeHeadRect.bottom + speed <= boundaryRect.bottom) {
+            newY += speed;
+          } else {
+            endGame("bottom");
+            return;
+          }
+        }
+
+        for (let i = snakeLength - 1; i > 0; i--) {
+          snake[i].style.left = snake[i - 1].style.left;
+          snake[i].style.top = snake[i - 1].style.top;
+        }
+
+        snake[0].style.left = newX + "px";
+        snake[0].style.top = newY + "px";
+
+        checkCollision();
+      }
+
+      function endGame(boundaryTouched) {
+        alert(`Snake touched the ${boundaryTouched} boundary! \nPoints: ${points}`);
+        clearInterval(intervalId);
+      }
+
+      function startMoving() {
+        clearInterval(intervalId);
+        intervalId = setInterval(moveSnake, 200);
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.keyCode == 37 && direction !== 'right') {
+          direction = 'left';
+        } else if (e.keyCode == 38 && direction !== 'down') {
+          direction = 'up';
+        } else if (e.keyCode == 39 && direction !== 'left') {
+          direction = 'right';
+        } else if (e.keyCode == 40 && direction !== 'up') {
+          direction = 'down';
+        }
+        startMoving();
+      });
+
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchEndX = 0;
+      let touchEndY = 0;
+
+      function handleTouchStart(e) {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+      }
+
+      function handleTouchEnd(e) {
+        touchEndX = e.changedTouches[0].screenX;
+        touchEndY = e.changedTouches[0].screenY;
+        handleSwipe();
+      }
+
+      function handleSwipe() {
+        let diffX = touchEndX - touchStartX;
+        let diffY = touchEndY - touchStartY;
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+          if (diffX > 0 && direction !== 'left') {
+            direction = 'right';
+          } else if (diffX < 0 && direction !== 'right') {
+            direction = 'left';
+          }
+        } else {
+          if (diffY > 0 && direction !== 'up') {
+            direction = 'down';
+          } else if (diffY < 0 && direction !== 'down') {
+            direction = 'up';
+          }
+        }
+        startMoving();
+      }
+
+      document.addEventListener("touchstart", handleTouchStart, false);
+      document.addEventListener("touchend", handleTouchEnd, false);
+
+      pauseBtn.addEventListener("click", () => {
+        if (isPaused) {
+          pauseBtn.textContent = "Pause";
+          isPaused = false;
+          startMoving();
+        } else {
+          pauseBtn.textContent = "Resume";
+          isPaused = true;
+          clearInterval(intervalId);
+        }
+      });
+
+      moveFood();
+    </script>
+  </body>
+</html>
